@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Properties>
+        <Property name="property1">property1-value</Property>
+    </Properties>
+
+    <Appenders>
+        <Console name="PatternLayout" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} %logger [%t] %-5level %logger{36} - %msg %throwable{short}%n"/>
+        </Console>
+        <Console name="PatternLayout" target="SYSTEM_OUT">
+            <PatternLayout>
+                <pattern>{
+                    "@timestamp":"%d{ISO8601}"
+                    ,"log.level":"%p"
+                    ,"message":"%enc{%m}{JSON}"
+                    ,"service.name":"service-name"
+                    ,"process.thread.name":"%t"
+                    ,"log.logger":"%logger"
+                    ,"service.version":"$${sys:service:-undefined}"
+                    ,"trace.id":"$${ctx:trace.id}"
+                    ,"transaction.id":"$${ctx:transaction.id}"
+                    ,"host.name":"$${env:HOSTNAME}"
+                    ,"labels.openshift.buildname":"$${env:OPENSHIFT_BUILD_NAME}"
+                    ,"package.build_version":"${git:git}"
+                    }%n</pattern>
+            </PatternLayout>
+        </Console>
+
+        <RollingFile name="EcsLayout" fileName="./logs/json.log"
+                     filePattern="./logs/$${date:yyyy-MM}/%d{dd-MM-yyyy}-%i-json.log">
+            <EcsLayout serviceName="${sys:service}" >
+                <KeyValuePair key="service.version" value="$${git:commit.id}" />
+
+
+
+                <KeyValuePair key="service.version" value="${sys:service}"/>
+                <KeyValuePair key="host.hostname" value="$${env:HOSTNAME}"/>
+                <KeyValuePair key="labels.openshift.buildname" value="$${env:OPENSHIFT_BUILD_NAME}" />
+                <KeyValuePair key="package.build_version" value="${git:git}"/>
+            </EcsLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy />
+                <SizeBasedTriggeringPolicy size="250 MB" />
+            </Policies>
+            <DefaultRolloverStrategy max="8"/>
+        </RollingFile>
+
+        <Console name="LogstashLayout" target="SYSTEM_OUT">
+            <LogstashLayout
+                    dateTimeFormatPattern="yyyy-MM-dd'T'HH:mm:ss.SSSZZZ"
+                    eventTemplateUri="classpath:EcsLayout.json"
+                    prettyPrintEnabled="false" stackTraceEnabled="true">
+                <EventTemplateAdditionalFields>
+                    <KeyValuePair key="service.name" value="service-xyz"/>
+                    <KeyValuePair key="service.version" value="${sys:service}"/>
+                    <KeyValuePair key="host.hostname" value="$${env:HOSTNAME}"/>
+                    <KeyValuePair key="labels.openshift.buildname" value="$${env:OPENSHIFT_BUILD_NAME}" />
+                    <KeyValuePair key="package.build_version" value="${git:git}"/>
+                </EventTemplateAdditionalFields>
+            </LogstashLayout>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Root level="error">
+<!--
+            <AppenderRef ref="PatternLayout" />
+            <AppenderRef ref="EcsLayout" />
+-->
+            <AppenderRef ref="PatternLayout" />
+        </Root>
+        <Logger name="com.abc" level="info" additivity="false">
+            <AppenderRef ref="EcsLayout" />
+            <AppenderRef ref="LogstashLayout" />
+        </Logger>
+    </Loggers>
+</Configuration>
